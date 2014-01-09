@@ -41,11 +41,11 @@ init({Supervisor, MinAliveRatio}) ->
     PidTableName = ets:new(pid_table, [private, duplicate_bag]),
     add_missing_pids(PidTableName, Supervisor),
     State = #state{
-        supervisor                  = Supervisor,
+        supervisor          = Supervisor,
         pids_count_original = table_size(PidTableName),
-        min_alive_ratio         = MinAliveRatio,
-        pid_table                   = PidTableName,
-        last_pid                        = ets:first(PidTableName)},
+        min_alive_ratio     = MinAliveRatio,
+        pid_table           = PidTableName,
+        last_pid            = ets:first(PidTableName)},
     {ok, State}.
 
 handle_call({pid}, _From, State = #state{last_pid = LastPid, pid_table = PidTable}) ->
@@ -97,17 +97,20 @@ check_zero_pids(PidTable, Supervisor) ->
         0 ->
             error_logger:error_msg("~p: Supervisor ~p has no children. Giving up.\n", [?MODULE, Supervisor]),
             exit({error, supervisor_has_no_children});
-        _ -> noop
+        _ ->
+            noop
     end.
 
 too_few_pids(PidTable, PidsCountOriginal, MinAliveRatio) ->
     table_size(PidTable) / PidsCountOriginal < MinAliveRatio.
 
 add_missing_pids(Table, Supervisor) ->
-    Pids = ?MODULE:child_pids(Supervisor),
+    Pids    = ?MODULE:child_pids(Supervisor),
     PidsNew = lists:filter(fun(E) -> ets:lookup(Table, E) =:= [] end, Pids),
+
     error_logger:info_msg("~p: Found ~p new processes of ~p total.\n", [?MODULE, length(PidsNew), length(Pids)]),
-    PidsWithRefs = [{Pid, {monitor(Pid)}}|| Pid <- PidsNew],
+
+    PidsWithRefs = [{Pid, {monitor(Pid)}} || Pid <- PidsNew],
     ets:insert(Table, PidsWithRefs),
     check_zero_pids(Table, Supervisor).
 
@@ -123,7 +126,7 @@ child_pids(Supervisor) ->
             error_logger:error_msg("~p Supervisor ~p not running. Giving up.\n", [?MODULE, Supervisor]),
             exit({error, supervisor_not_running});
         _ ->
-                [ Pid || {_, Pid, _, _} <- supervisor:which_children(Supervisor)]
+            [Pid || {_, Pid, _, _} <- supervisor:which_children(Supervisor)]
     end.
 
 alive(undefined) ->
@@ -134,5 +137,5 @@ alive(Supervisor) when is_pid(Supervisor) ->
     erlang:is_process_alive(Supervisor).
 
 table_size(Table) ->
-        {size, Count} = proplists:lookup(size, ets:info(Table)),
-        Count.
+    {size, Count} = proplists:lookup(size, ets:info(Table)),
+    Count.
